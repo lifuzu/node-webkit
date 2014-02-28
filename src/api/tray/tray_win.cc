@@ -32,7 +32,7 @@
 #include "content/nw/src/nw_shell.h"
 #include "ui/gfx/image/image.h"
 
-namespace api {
+namespace nwapi {
 
 StatusTray* Tray::status_tray_ = NULL;
 
@@ -58,7 +58,8 @@ void Tray::Create(const base::DictionaryValue& option) {
   if (!status_tray_)
     status_tray_ = StatusTray::Create();
 
-  status_icon_ = status_tray_->CreateStatusIcon();
+  status_icon_ = status_tray_->CreateStatusIcon(StatusTray::NOTIFICATION_TRAY_ICON,
+                                                gfx::ImageSkia(), base::string16());
   status_observer_ = new TrayObserver(this);
   status_icon_->AddObserver(status_observer_);
 }
@@ -106,4 +107,4 @@ void Tray::Remove() {
 void Tray::SetAltIcon(const std::string& alticon_path) {
 }
 
-}  // namespace api
+}  // namespace nwapi

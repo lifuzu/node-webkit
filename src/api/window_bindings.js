@@ -1,22 +1,83 @@
-function Window(routing_id, nobind) {
-  // Get and set id.
-  var id = global.__nwObjectsRegistry.allocateId();
-  Object.defineProperty(this, 'id', {
-    value: id,
-    writable: false
-  });
+function Window(routing_id, nobind, predefined_id) {
+    // Get and set id.
+    native function CallObjectMethod();
+    native function CallObjectMethodSync();
+    native function AllocateId();
 
-  // Store routing id (need for IPC since we are in node's context).
-  this.routing_id = routing_id;
+    var id;
+    if (predefined_id)
+        id = predefined_id;
+    else
+        id = AllocateId();
 
-  // Store myself in node's context.
-  global.__nwWindowsStore[id] = this;
-  global.__nwObjectsRegistry.set(id, this);
+    Object.defineProperty(this, 'id', {
+        value: id,
+        writable: false
+    });
 
-  // Tell Shell I'm the js delegate of it.
-  native function BindToShell();
-  if (!nobind)
-    BindToShell(this.routing_id, this.id);
+    // Store routing id (need for IPC since we are in node's context).
+    this.routing_id = routing_id;
+
+    // Store myself in node's context.
+    global.__nwWindowsStore[id] = this;
+    global.__nwObjectsRegistry.set(id, this);
+
+    // Tell Shell I'm the js delegate of it.
+    native function BindToShell();
+    if (!nobind)
+        BindToShell(this.routing_id, this.id);
+
+    var that = this;
+    this.cookies = {
+        req_id : 0,
+        get : function(details, cb) {
+            this.req_id++;
+            if (typeof cb == 'function') {
+                that.once('__nw_gotcookie' + this.req_id, function(cookie) {
+                    if (cookie.length > 0)
+                        cb(cookie[0]);
+                    else
+                        cb(null);
+                });
+            }
+            CallObjectMethod(that, 'CookieGet', [ this.req_id, details ]);
+        },
+        getAll : function(details, cb) {
+            this.req_id++;
+            if (typeof cb == 'function') {
+                that.once('__nw_gotcookie' + this.req_id, function(cookie) {
+                    cb(cookie);
+                });
+            }
+            CallObjectMethod(that, 'CookieGetAll', [ this.req_id, details ]);
+        },
+        remove : function(details, cb) {
+            this.req_id++;
+            if (typeof cb == 'function') {
+                that.once('__nw_gotcookie' + this.req_id, function(details) {
+                    cb(details);
+                });
+            }
+            CallObjectMethod(that, 'CookieRemove', [ this.req_id, details ]);
+        },
+        set : function(details, cb) {
+            this.req_id++;
+            if (typeof cb == 'function') {
+                that.once('__nw_gotcookie' + this.req_id, function(cookie) {
+                    cb(cookie);
+                });
+            }
+            CallObjectMethod(that, 'CookieSet', [ this.req_id, details ]);
+        },
+        onChanged : {
+            addListener : function(cb) {
+                that.on('__nw_cookie_changed', cb);
+            },
+            removeListener : function(cb) {
+                that.removeListener('__nw_cookie_changed', cb);
+            }
+        }
+    }
 }
 
 // Window will inherit EventEmitter in "third_party/node/src/node.js", do
@@ -35,7 +96,7 @@ native function CallObjectMethodSync();
 Window.prototype.on = Window.prototype.addListener = function(ev, callback) {
   // Save window id of where the callback is created.
   var closure = v8_util.getCreationContext(callback);
-  if (v8_util.getConstructorName(closure) == 'Window' && 
+  if (v8_util.getConstructorName(closure) == 'Window' &&
       closure.hasOwnProperty('nwDispatcher')) {
     v8_util.setHiddenValue(callback, '__nwWindowId',
         closure.nwDispatcher.requireNwGui().Window.get().id);
@@ -52,7 +113,7 @@ Window.prototype.handleEvent = function(ev) {
   for (var i = 0; i < listeners_copy.length; ++i) {
     var original_closure = v8_util.getCreationContext(listeners_copy[i]);
 
-    // Skip for node context. 
+    // Skip for node context.
     if (v8_util.getConstructorName(original_closure) != 'Window')
       continue;
 
@@ -75,6 +136,14 @@ Window.prototype.handleEvent = function(ev) {
     this.removeListener(ev, listeners_copy[i]);
   }
 
+    if (ev == 'new-win-policy' && arguments.length > 3) {
+        var policy = arguments[3];
+        policy.ignore         =  function () { this.val = 'ignore'; };
+        policy.forceCurrent   =  function () { this.val = 'current'; };
+        policy.forceDownload  =  function () { this.val = 'download'; };
+        policy.forceNewWindow =  function () { this.val = 'new-window'; };
+        policy.forceNewPopup  =  function () { this.val = 'new-popup'; };
+    }
   // Route events to EventEmitter.
   this.emit.apply(this, arguments);
 
@@ -164,6 +233,11 @@ Window.prototype.__defineSetter__('isFullscreen', function(flag) {
     this.leaveFullscreen();
 });
 
+Window.prototype.isDevToolsOpen = function () {
+    var result = CallObjectMethodSync(this, 'IsDevToolsOpen', []);
+    return Boolean(result[0]);
+}
+
 Window.prototype.__defineGetter__('isFullscreen', function() {
   var result = CallObjectMethodSync(this, 'IsFullscreen', []);
   return Boolean(result[0]);
@@ -200,25 +274,27 @@ Window.prototype.resizeBy = function(width, height) {
 }
 
 Window.prototype.focus = function(flag) {
-  if (typeof flag == 'undefined' || Boolean(flag))
-    this.window.focus();
-  else
+  if (typeof flag == 'undefined' || Boolean(flag)) {
+      if (this.__nw_is_devtools)
+          CallObjectMethod(this, 'Focus', []);
+      else
+          this.window.focus();
+  } else
     this.blur();
-}
+};
 
 Window.prototype.blur = function() {
-  this.window.blur();
-}
+    if (this.__nw_is_devtools)
+        CallObjectMethod(this, 'Blur', []);
+    else
+        this.window.blur();
+};
 
 Window.prototype.show = function(flag) {
   if (typeof flag == 'undefined' || Boolean(flag))
     CallObjectMethod(this, 'Show', []);
   else
     this.hide();
-}
-
-Window.prototype.hide = function() {
-  CallObjectMethod(this, 'Hide', []);
 }
 
 Window.prototype.hide = function() {
@@ -269,15 +345,37 @@ Window.prototype.toggleKioskMode = function() {
   CallObjectMethod(this, 'ToggleKioskMode', []);
 }
 
-Window.prototype.showDevTools = function(id, headless) {
-      CallObjectMethod(this, 'ShowDevTools', [id, Boolean(headless)]);
+Window.prototype.closeDevTools = function() {
+  CallObjectMethod(this, 'CloseDevTools', []);
 }
 
-    Window.prototype.__setDevToolsJail = function(id) {
-        var frm = null;
-        if (id)
-            frm = this.window.document.getElementById(id);
-        CallObjectMethod(this, 'setDevToolsJail', frm);
+Window.prototype.showDevTools = function(frm, headless) {
+    var id = '';
+    if (typeof frm === 'string') {
+        id = frm;
+        this._pending_devtools_jail = null;
+    }else{
+        this._pending_devtools_jail = frm;
+    }
+    var win_id = CallObjectMethodSync(this, 'ShowDevTools', [id, Boolean(headless)])[0];
+    var ret;
+    if (typeof win_id == 'number' && win_id > 0) {
+        ret = global.__nwWindowsStore[win_id];
+        if (!ret) {
+            ret = new global.Window(this.window.nwDispatcher.getRoutingIDForCurrentContext(), true, win_id);
+            ret.__nw_is_devtools = true;
+        }
+        return ret;
+    }
+}
+
+Window.prototype.__setDevToolsJail = function(id) {
+    var frm = null;
+    if (id)
+        frm = this.window.document.getElementById(id);
+    else
+        frm = this._pending_devtools_jail || null;
+    CallObjectMethod(this, 'setDevToolsJail', frm);
 }
 
 Window.prototype.setMinimumSize = function(width, height) {
@@ -295,6 +393,11 @@ Window.prototype.setResizable = function(resizable) {
 
 Window.prototype.setAlwaysOnTop = function(flag) {
   CallObjectMethod(this, 'SetAlwaysOnTop', [ Boolean(flag) ]);
+}
+
+Window.prototype.setShowInTaskbar = function(flag) {
+  flag = Boolean(flag);
+  CallObjectMethod(this, 'SetShowInTaskbar', [ flag ]);
 }
 
 Window.prototype.requestAttention = function(flash) {
@@ -334,12 +437,16 @@ Window.prototype.capturePage = function(callback, image_format) {
   }
 
   if (typeof callback == 'function') {
-    this.once('capturepagedone', function(imgdata) {
+    this.once('__nw_capturepagedone', function(imgdata) {
       callback(imgdata);
     });
   }
 
   CallObjectMethod(this, 'CapturePage', [image_format]);
-}
+};
+
+    Window.prototype.eval = function(frame, script) {
+        return CallObjectMethod(this, 'EvaluateScript', frame, script);
+    };
 
 }  // function Window.init

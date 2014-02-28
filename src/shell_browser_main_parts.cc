@@ -22,7 +22,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
-#include "base/message_loop.h"
+#include "base/message_loop/message_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
@@ -30,6 +30,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "content/nw/src/api/app/app.h"
 #include "content/nw/src/api/dispatcher_host.h"
+#include "content/nw/src/breakpad_linux.h"
 #include "content/nw/src/browser/printing/print_job_manager.h"
 #include "content/nw/src/browser/shell_devtools_delegate.h"
 #include "content/nw/src/common/shell_switches.h"
@@ -86,11 +87,6 @@ base::StringPiece PlatformResourceProvider(int key) {
   return base::StringPiece();
 }
 
-void RenderViewHostCreated(content::RenderViewHost* render_view_host) {
-  //FIXME: handle removal
-  new api::DispatcherHost(render_view_host);
-}
-
 }  // namespace
 
 namespace content {
@@ -101,18 +97,15 @@ ShellBrowserMainParts::ShellBrowserMainParts(
       parameters_(parameters),
       run_message_loop_(true),
       devtools_delegate_(NULL),
-      rvh_callback_(base::Bind(&RenderViewHostCreated)),
       notify_result_(ProcessSingleton::PROCESS_NONE)
 {
 #if defined(ENABLE_PRINTING)
   // Must be created after the NotificationService.
   print_job_manager_.reset(new printing::PrintJobManager);
 #endif
-  content::RenderViewHost::AddCreatedCallback(rvh_callback_);
 }
 
 ShellBrowserMainParts::~ShellBrowserMainParts() {
-  content::RenderViewHost::RemoveCreatedCallback(rvh_callback_);
 }
 
 #if !defined(OS_MACOSX)
@@ -160,6 +153,7 @@ int ShellBrowserMainParts::PreCreateThreads() {
 
 void ShellBrowserMainParts::Init() {
   package_.reset(new nw::Package());
+  CommandLine& command_line = *CommandLine::ForCurrentProcess();
 
   browser_context_.reset(new ShellBrowserContext(false, package()));
   off_the_record_browser_context_.reset(
@@ -181,7 +175,7 @@ void ShellBrowserMainParts::Init() {
   int port = 0;
   // See if the user specified a port on the command line (useful for
   // automation). If not, use an ephemeral port by specifying 0.
-  CommandLine& command_line = *CommandLine::ForCurrentProcess();
+
   if (command_line.HasSwitch(switches::kRemoteDebuggingPort)) {
     int temp_port;
     std::string port_str =
@@ -225,8 +219,8 @@ bool ShellBrowserMainParts::ProcessSingletonNotificationCallback(
   static const char* const kSwitchNames[] = {
     switches::kNoSandbox,
     switches::kProcessPerTab,
-    switches::kEnableExperimentalWebKitFeatures,
-    switches::kEnableCssShaders,
+    switches::kEnableExperimentalWebPlatformFeatures,
+    //    switches::kEnableCssShaders,
     switches::kAllowFileAccessFromFiles,
   };
   for (size_t i = 0; i < arraysize(kSwitchNames); ++i) {
@@ -234,9 +228,9 @@ bool ShellBrowserMainParts::ProcessSingletonNotificationCallback(
   }
 
 #if 0
-  api::App::EmitOpenEvent(UTF16ToUTF8(cmd));
+  nwapi::App::EmitOpenEvent(UTF16ToUTF8(cmd));
 #else
-  api::App::EmitOpenEvent(cmd);
+  nwapi::App::EmitOpenEvent(cmd);
 #endif
 
   return true;

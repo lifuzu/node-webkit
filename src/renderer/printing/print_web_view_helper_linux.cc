@@ -18,10 +18,6 @@
 #include "skia/ext/vector_canvas.h"
 #include "third_party/WebKit/public/web/WebFrame.h"
 
-#if !defined(OS_CHROMEOS)
-#include "base/process_util.h"
-#endif  // !defined(OS_CHROMEOS)
-
 namespace printing {
 
 using WebKit::WebFrame;
@@ -165,7 +161,7 @@ void PrintWebViewHelper::PrintPageInternal(
   gfx::Rect canvas_area =
       params.params.display_header_footer ? gfx::Rect(page_size) : content_area;
 
-  SkDevice* device = metafile->StartPageForVectorCanvas(page_size, canvas_area,
+  SkBaseDevice* device = metafile->StartPageForVectorCanvas(page_size, canvas_area,
                                                         scale_factor);
   if (!device)
     return;

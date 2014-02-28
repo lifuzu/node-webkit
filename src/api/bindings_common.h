@@ -21,7 +21,7 @@
 #ifndef CONTENT_NW_SRC_API_BINDINGS_COMMON_H_
 #define CONTENT_NW_SRC_API_BINDINGS_COMMON_H_
 
-#include "base/string_piece.h"
+#include "base/strings/string_piece.h"
 #include "v8/include/v8.h"
 
 namespace content {
@@ -30,11 +30,14 @@ class RenderView;
 
 // Get RenderView from current js context (only works under window context).
 content::RenderView* GetCurrentRenderView();
+content::RenderView* GetEnteredRenderView();
 
 // Get string from resource_id.
 base::StringPiece GetStringResource(int resource_id);
 
 namespace remote {
+
+v8::Handle<v8::Value> AllocateId(int routing_id);
 
 // Tell browser to allocate a new object.
 // function AllocateObject(id, name, options);

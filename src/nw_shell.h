@@ -98,14 +98,14 @@ class Shell : public WebContentsDelegate,
   void Stop();
   void ReloadOrStop();
   void ShowDevTools(const char* jail_id = NULL, bool headless = false);
-#if 0
   void CloseDevTools();
-#endif
+  bool devToolsOpen() { return devtools_window_.get() != NULL; }
   // Send an event to renderer.
   void SendEvent(const std::string& event, const std::string& arg1 = "");
+  void SendEvent(const std::string& event, const base::ListValue& args);
 
   // Decide whether we should close the window.
-  bool ShouldCloseWindow();
+  bool ShouldCloseWindow(bool quit = false);
 
   virtual GURL OverrideDOMStorageOrigin(const GURL& origin);
 
@@ -113,6 +113,7 @@ class Shell : public WebContentsDelegate,
   void PrintCriticalError(const std::string& title,
                           const std::string& content);
 
+  int WrapDevToolsWindow();
   // Returns the currently open windows.
   static std::vector<Shell*>& windows() { return windows_; }
 
@@ -132,6 +133,8 @@ class Shell : public WebContentsDelegate,
   void set_id(int id) { id_ = id; }
   int id() const { return id_; }
 
+  virtual void RenderViewCreated(RenderViewHost* render_view_host) OVERRIDE;
+
  protected:
   // content::WebContentsObserver implementation.
   virtual bool OnMessageReceived(const IPC::Message& message) OVERRIDE;
@@ -150,6 +153,11 @@ class Shell : public WebContentsDelegate,
                                   const string16& frame_name,
                                   const GURL& target_url,
                                   WebContents* new_contents) OVERRIDE;
+#if defined(OS_WIN)
+  virtual void WebContentsFocused(WebContents* contents) OVERRIDE;
+#endif
+  virtual content::ColorChooser* OpenColorChooser(
+      content::WebContents* web_contents, SkColor color) OVERRIDE;
   virtual void RunFileChooser(
       content::WebContents* web_contents,
       const content::FileChooserParams& params) OVERRIDE;
@@ -193,12 +201,12 @@ class Shell : public WebContentsDelegate,
 
   // Weak potiner to devtools window.
   base::WeakPtr<Shell> devtools_window_;
+  base::WeakPtr<Shell> devtools_owner_;
+
+  int devtools_window_id_;
 #if 0
   ShellDevToolsFrontend* devtools_frontend_;
 #endif
-  // Factory to generate weak pointer, used by devtools.
-  base::WeakPtrFactory<Shell> weak_ptr_factory_;
-
   // Whether this shell is devtools window.
   bool is_devtools_;
 
@@ -218,6 +226,9 @@ class Shell : public WebContentsDelegate,
   static bool quit_message_loop_;
 
   static int exit_code_;
+
+  // Factory to generate weak pointer, used by devtools.
+  base::WeakPtrFactory<Shell> weak_ptr_factory_;
 };
 
 }  // namespace content

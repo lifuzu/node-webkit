@@ -39,6 +39,19 @@ App.prototype.closeAllWindows = function() {
   nw.callStaticMethod('App', 'CloseAllWindows', [ ]);
 }
 
+App.prototype.crashBrowser = function() {
+  nw.callStaticMethod('App', 'CrashBrowser', [ ]);
+}
+
+App.prototype.crashRenderer = function() {
+  nw.crashRenderer();
+}
+
+App.prototype.setCrashDumpDir = function(dir) {
+  nw.setCrashDumpDir(dir); // for windows renderer process
+  return nw.callStaticMethodSync('App', 'SetCrashDumpDir', [ dir ]);
+}
+
 App.prototype.clearCache = function() {
   nw.callStaticMethodSync('App', 'ClearCache', [ ]);
 }
@@ -78,7 +91,7 @@ App.prototype.__defineGetter__('fullArgv', function() {
 
 App.prototype.__defineGetter__('dataPath', function() {
   if (!dataPath)
-    dataPath = nw.callStaticMethodSync('App', 'GetDataPath', [ ]);
+    dataPath = nw.callStaticMethodSync('App', 'GetDataPath', [ ])[0];
 
   return dataPath;
 });

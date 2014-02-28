@@ -11,7 +11,7 @@
 #include "content/public/browser/browser_message_filter.h"
 
 #if defined(OS_WIN)
-#include "base/shared_memory.h"
+#include "base/memory/shared_memory.h"
 #endif
 
 struct PrintHostMsg_ScriptedPrint_Params;
@@ -76,6 +76,10 @@ class PrintingMessageFilter : public content::BrowserMessageFilter {
   void GetPrintSettingsForRenderView(
       int render_view_id,
       GetPrintSettingsForRenderViewParams params,
+      const base::Closure& callback,
+      scoped_refptr<printing::PrinterQuery> printer_query);
+
+  void OnGetPrintSettingsFailed(
       const base::Closure& callback,
       scoped_refptr<printing::PrinterQuery> printer_query);
 

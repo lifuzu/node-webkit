@@ -40,7 +40,7 @@ class StatusIcon;
 class StatusTray;
 #endif  // defined(OS_MACOSX)
 
-namespace api {
+namespace nwapi {
 
 class Menu;
 class TrayObserver;
@@ -48,7 +48,7 @@ class TrayObserver;
 class Tray : public Base {
  public:
   Tray(int id,
-       DispatcherHost* dispatcher_host,
+       const base::WeakPtr<DispatcherHost>& dispatcher_host,
        const base::DictionaryValue& option);
   virtual ~Tray();
 
@@ -94,6 +94,6 @@ class Tray : public Base {
   DISALLOW_COPY_AND_ASSIGN(Tray);
 };
 
-}  // namespace api
+}  // namespace nwapi
 
 #endif  // CONTENT_NW_SRC_API_TRAY_TRAY_H_

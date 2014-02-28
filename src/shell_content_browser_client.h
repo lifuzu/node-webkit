@@ -34,7 +34,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       const MainFunctionParams& parameters) OVERRIDE;
   virtual WebContentsViewPort* OverrideCreateWebContentsView(
       WebContents* web_contents,
-      RenderViewHostDelegateView** render_view_host_delegate_view) OVERRIDE;
+      RenderViewHostDelegateView** render_view_host_delegate_view,
+      const WebContents::CreateParams& params) OVERRIDE;
   virtual std::string GetApplicationLocale() OVERRIDE;
   virtual void AppendExtraCommandLineSwitches(CommandLine* command_line,
                                               int child_process_id) OVERRIDE;
@@ -70,10 +71,31 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       const base::FilePath& partition_path,
       bool in_memory,
       ProtocolHandlerMap* protocol_handlers) OVERRIDE;
+  virtual void AllowCertificateError(
+    int render_process_id,
+    int render_view_id,
+    int cert_error,
+    const net::SSLInfo& ssl_info,
+    const GURL& request_url,
+    ResourceType::Type resource_type,
+    bool overridable,
+    bool strict_enforcement,
+    const base::Callback<void(bool)>& callback,
+    content::CertificateRequestResultType* result) OVERRIDE;
+  virtual void GetAdditionalAllowedSchemesForFileSystem(
+      std::vector<std::string>* additional_schemes) OVERRIDE;
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+  virtual void GetAdditionalMappedFilesForChildProcess(
+      const CommandLine& command_line,
+      int child_process_id,
+      std::vector<content::FileDescriptorInfo>* mappings) OVERRIDE;
+#endif
+  virtual QuotaPermissionContext* CreateQuotaPermissionContext() OVERRIDE;
 
  private:
   ShellBrowserContext* ShellBrowserContextForBrowserContext(
       BrowserContext* content_browser_context);
+  bool GetUserAgentManifest(std::string* agent);
   scoped_ptr<ShellResourceDispatcherHostDelegate>
       resource_dispatcher_host_delegate_;
 

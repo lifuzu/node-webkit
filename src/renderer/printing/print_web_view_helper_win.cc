@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
-#include "base/process_util.h"
 #include "base/win/scoped_gdi_object.h"
 #include "base/win/scoped_hdc.h"
 #include "base/win/scoped_select_object.h"
@@ -171,7 +170,7 @@ void PrintWebViewHelper::RenderPage(
   gfx::Rect canvas_area =
       params.display_header_footer ? gfx::Rect(page_size) : content_area;
 
-  SkDevice* device = metafile->StartPageForVectorCanvas(
+  SkBaseDevice* device = metafile->StartPageForVectorCanvas(
       page_size, canvas_area, scale_factor);
   DCHECK(device);
   // The printPage method may take a reference to the canvas we pass down, so it

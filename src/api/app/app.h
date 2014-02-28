@@ -34,8 +34,8 @@ class RenderProcessHost;
 class Shell;
 }
 
-namespace api {
-  
+namespace nwapi {
+
 class App {
  public:
   static void Call(const std::string& method,
@@ -47,7 +47,7 @@ class App {
                    base::ListValue* result);
 
   // Try to close all windows (then will cause whole app to quit).
-  static void CloseAllWindows();
+  static void CloseAllWindows(bool force = false, bool quit = false);
 
   // Quit the whole app.
   static void Quit(content::RenderProcessHost* rph = NULL);
@@ -55,14 +55,18 @@ class App {
   // Post "open" event.
   static void EmitOpenEvent(const std::string& path);
 
+  // Post "reopen" event.
+  // (This event is received when the user clicked the icon in the Dock).
+  static void EmitReopenEvent();
+
   static void ClearCache(content::RenderProcessHost* render_view_host);
+
  private:
   App();
-
   DISALLOW_COPY_AND_ASSIGN(App);
 };
 
-}  // namespace api
+}  // namespace nwapi
 
 #endif  // CONTENT_NW_SRC_API_APP_APP_H_
 

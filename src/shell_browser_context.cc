@@ -25,6 +25,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/values.h"
+#include "chrome/common/chrome_switches.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_context.h"
 #include "content/public/browser/storage_partition.h"
@@ -56,6 +57,12 @@ class ShellBrowserContext::ShellResourceContext : public ResourceContext {
   virtual net::URLRequestContext* GetRequestContext() OVERRIDE {
     CHECK(getter_);
     return getter_->GetURLRequestContext();
+  }
+  virtual bool AllowMicAccess(const GURL& origin) OVERRIDE {
+    return true;
+  }
+  virtual bool AllowCameraAccess(const GURL& origin) OVERRIDE {
+    return true;
   }
 
   void set_url_request_context_getter(ShellURLRequestContextGetter* getter) {
@@ -119,11 +126,11 @@ void ShellBrowserContext::InitWhileIOAllowed() {
   NOTIMPLEMENTED();
 #endif
 
-  if (!file_util::PathExists(path_))
+  if (!base::PathExists(path_))
     file_util::CreateDirectory(path_);
 }
 
-FilePath ShellBrowserContext::GetPath() {
+FilePath ShellBrowserContext::GetPath() const {
   return path_;
 }
 
@@ -149,13 +156,29 @@ net::URLRequestContextGetter* ShellBrowserContext::GetRequestContext()  {
 net::URLRequestContextGetter* ShellBrowserContext::CreateRequestContext(
     ProtocolHandlerMap* protocol_handlers) {
   DCHECK(!url_request_getter_);
+  CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  std::string auth_server_whitelist =
+    cmd_line->GetSwitchValueASCII(switches::kAuthServerWhitelist);
+  std::string auth_delegate_whitelist =
+    cmd_line->GetSwitchValueASCII(switches::kAuthNegotiateDelegateWhitelist);
+  std::string gssapi_library_name =
+    cmd_line->GetSwitchValueASCII(switches::kGSSAPILibraryName);
+  std::string auth_schemes =
+    cmd_line->GetSwitchValueASCII(switches::kAuthSchemes);
+
+  if (auth_schemes.empty())
+    auth_schemes = "digest,ntlm,negotiate";
+
   url_request_getter_ = new ShellURLRequestContextGetter(
       ignore_certificate_errors_,
       GetPath(),
       package_->path(),
       BrowserThread::UnsafeGetMessageLoopForThread(BrowserThread::IO),
       BrowserThread::UnsafeGetMessageLoopForThread(BrowserThread::FILE),
-      protocol_handlers);
+      protocol_handlers, this,
+      auth_schemes, auth_server_whitelist, auth_delegate_whitelist,
+      gssapi_library_name);
+
   resource_context_->set_url_request_context_getter(url_request_getter_.get());
   return url_request_getter_.get();
 }
@@ -201,13 +224,24 @@ GeolocationPermissionContext*
   return NULL;
 }
 
-SpeechRecognitionPreferences*
-    ShellBrowserContext::GetSpeechRecognitionPreferences() {
+quota::SpecialStoragePolicy* ShellBrowserContext::GetSpecialStoragePolicy() {
   return NULL;
 }
 
-quota::SpecialStoragePolicy* ShellBrowserContext::GetSpecialStoragePolicy() {
-  return NULL;
+void ShellBrowserContext::RequestMIDISysExPermission(
+      int render_process_id,
+      int render_view_id,
+      int bridge_id,
+      const GURL& requesting_frame,
+      const MIDISysExPermissionCallback& callback) {
+  callback.Run(true);
+}
+
+void ShellBrowserContext::CancelMIDISysExPermissionRequest(
+    int render_process_id,
+    int render_view_id,
+    int bridge_id,
+    const GURL& requesting_frame) {
 }
 
 }  // namespace content

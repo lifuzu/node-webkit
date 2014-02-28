@@ -23,8 +23,9 @@
 
 #import <Cocoa/Cocoa.h>
 
+#include "base/mac/scoped_nsobject.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_nsobject.h"
+#include "base/memory/weak_ptr.h"
 #include "content/nw/src/browser/native_window.h"
 
 @class ShellNSWindow;
@@ -35,7 +36,7 @@ namespace nw {
 
 class NativeWindowCocoa : public NativeWindow {
  public:
-  explicit NativeWindowCocoa(content::Shell* shell,
+  explicit NativeWindowCocoa(const base::WeakPtr<content::Shell>& shell,
                              base::DictionaryValue* manifest);
   virtual ~NativeWindowCocoa();
 
@@ -57,6 +58,7 @@ class NativeWindowCocoa : public NativeWindow {
   virtual void SetMaximumSize(int width, int height) OVERRIDE;
   virtual void SetResizable(bool resizable) OVERRIDE;
   virtual void SetAlwaysOnTop(bool top) OVERRIDE;
+  virtual void SetShowInTaskbar(bool show = true) OVERRIDE;
   virtual void SetPosition(const std::string& position) OVERRIDE;
   virtual void SetPosition(const gfx::Point& position) OVERRIDE;
   virtual gfx::Point GetPosition() OVERRIDE;
@@ -64,11 +66,13 @@ class NativeWindowCocoa : public NativeWindow {
   virtual void FlashFrame(bool flash) OVERRIDE;
   virtual void SetKiosk(bool kiosk) OVERRIDE;
   virtual bool IsKiosk() OVERRIDE;
-  virtual void SetMenu(api::Menu* menu) OVERRIDE;
+  virtual void SetMenu(nwapi::Menu* menu) OVERRIDE;
   virtual void SetToolbarButtonEnabled(TOOLBAR_BUTTON button,
                                        bool enabled) OVERRIDE;
   virtual void SetToolbarUrlEntry(const std::string& url) OVERRIDE;
   virtual void SetToolbarIsLoading(bool loading) OVERRIDE;
+  virtual void SetInitialFocus(bool accept_focus) OVERRIDE;
+  virtual bool InitialFocus() OVERRIDE;
 
   // Called to handle a mouse event.
   void HandleMouseEvent(NSEvent* event);
@@ -103,7 +107,7 @@ class NativeWindowCocoa : public NativeWindow {
   NSWindow* window_;
 
   // Delegate to the toolbar.
-  scoped_nsobject<ShellToolbarDelegate> toolbar_delegate_;
+  base::scoped_nsobject<ShellToolbarDelegate> toolbar_delegate_;
 
   bool is_fullscreen_;
   bool is_kiosk_;
@@ -126,6 +130,9 @@ class NativeWindowCocoa : public NativeWindow {
   // Mouse location since the last mouse event, in screen coordinates. This is
   // used in custom drag to compute the window movement.
   NSPoint last_mouse_location_;
+
+  bool initial_focus_;
+  bool first_show_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeWindowCocoa);
 };

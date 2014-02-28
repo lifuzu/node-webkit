@@ -24,7 +24,7 @@
 
 #include "base/logging.h"
 #include "base/mac/bundle_locations.h"
-#import "base/memory/scoped_nsobject.h"
+#import "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "content/public/browser/browser_thread.h"
 #import "ui/base/cocoa/nib_loading.h"
@@ -40,7 +40,7 @@ const int kPasswordFieldTag = 2;
 // going away.
 @interface ShellLoginDialogHelper : NSObject<NSAlertDelegate> {
  @private
-  scoped_nsobject<NSAlert> alert_;
+  base::scoped_nsobject<NSAlert> alert_;
   NSTextField* usernameField_;  // WEAK; owned by alert_
   NSSecureTextField* passwordField_;  // WEAK; owned by alert_
 }
@@ -80,11 +80,14 @@ const int kPasswordFieldTag = 2;
 - (void)alertDidEnd:(NSAlert*)alert
          returnCode:(int)returnCode
         contextInfo:(void*)contextInfo {
-  if (returnCode == NSRunStoppedResponse)
-    return;
 
   content::ShellLoginDialog* this_dialog =
       reinterpret_cast<content::ShellLoginDialog*>(contextInfo);
+  if (returnCode == NSRunStoppedResponse) {
+    this_dialog->ReleaseSoon();
+    return;
+  }
+
   if (returnCode == NSAlertFirstButtonReturn) {
     this_dialog->UserAcceptedAuth(
         base::SysNSStringToUTF16([usernameField_ stringValue]),
@@ -106,11 +109,14 @@ namespace content {
 void ShellLoginDialog::PlatformCreateDialog(const string16& message) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
   helper_ = [[ShellLoginDialogHelper alloc] init];
+  message_ = message;
+}
 
+void ShellLoginDialog::PlatformShowDialog() {
   // Show the modal dialog.
   NSAlert* alert = [helper_ alert];
   [alert setDelegate:helper_];
-  [alert setInformativeText:base::SysUTF16ToNSString(message)];
+  [alert setInformativeText:base::SysUTF16ToNSString(message_)];
   [alert setMessageText:@"Please log in."];
   [alert addButtonWithTitle:@"OK"];
   NSButton* other = [alert addButtonWithTitle:@"Cancel"];
@@ -128,6 +134,7 @@ void ShellLoginDialog::PlatformCleanUp() {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
   [helper_ release];
   helper_ = nil;
+  ReleaseSoon();
 }
 
 void ShellLoginDialog::PlatformRequestCancelled() {

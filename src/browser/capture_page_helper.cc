@@ -25,7 +25,7 @@
 #include "base/base64.h"
 #include "base/bind.h"
 #include "base/stl_util.h"
-#include "base/stringprintf.h"
+#include "base/strings/stringprintf.h"
 #include "content/nw/src/api/api_messages.h"
 #include "content/nw/src/nw_shell.h"
 #include "content/nw/src/renderer/common/render_messages.h"
@@ -54,11 +54,11 @@ namespace keys = nw::capture_page_helper_constants;
 
 // static
 scoped_refptr<CapturePageHelper> CapturePageHelper::Create(
-    content::Shell* shell) {
+                const base::WeakPtr<content::Shell>& shell) {
   return make_scoped_refptr(new CapturePageHelper(shell));
 }
 
-CapturePageHelper::CapturePageHelper(content::Shell *shell)
+CapturePageHelper::CapturePageHelper(const base::WeakPtr<content::Shell>&shell)
     : content::WebContentsObserver(shell->web_contents()),
       shell_(shell) {
 }
@@ -147,7 +147,7 @@ void CapturePageHelper::SendResultFromBitmap(const SkBitmap& screen_capture) {
   base64_result.insert(0, base::StringPrintf("data:%s;base64,",
                                              mime_type.c_str()));
 
-  shell_->SendEvent("capturepagedone", base64_result);
+  shell_->SendEvent("__nw_capturepagedone", base64_result);
 }
 
 void CapturePageHelper::OnSnapshot(const SkBitmap& bitmap) {

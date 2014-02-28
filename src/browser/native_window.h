@@ -26,13 +26,15 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/compiler_specific.h"
+#include "content/nw/src/nw_shell.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/point.h"
 #include "ui/gfx/size.h"
 
-namespace api {
+namespace nwapi {
 class Menu;
 }
 
@@ -62,7 +64,7 @@ class NativeWindow {
  public:
   virtual ~NativeWindow();
 
-  static NativeWindow* Create(content::Shell* shell,
+  static NativeWindow* Create(const base::WeakPtr<content::Shell>& shell,
                               base::DictionaryValue* manifest);
 
   void InitFromManifest(base::DictionaryValue* manifest);
@@ -84,6 +86,7 @@ class NativeWindow {
   virtual void SetMaximumSize(int width, int height) = 0;
   virtual void SetResizable(bool resizable) = 0;
   virtual void SetAlwaysOnTop(bool top) = 0;
+  virtual void SetShowInTaskbar(bool show = true) = 0;
   virtual void SetPosition(const std::string& position) = 0;
   virtual void SetPosition(const gfx::Point& position) = 0;
   virtual gfx::Point GetPosition() = 0;
@@ -91,7 +94,9 @@ class NativeWindow {
   virtual void FlashFrame(bool flash) = 0;
   virtual void SetKiosk(bool kiosk) = 0;
   virtual bool IsKiosk() = 0;
-  virtual void SetMenu(api::Menu* menu) = 0;
+  virtual void SetMenu(nwapi::Menu* menu) = 0;
+  virtual void SetInitialFocus(bool accept_focus) = 0;
+  virtual bool InitialFocus() = 0;
 
   // Toolbar related controls.
   enum TOOLBAR_BUTTON {
@@ -112,18 +117,22 @@ class NativeWindow {
   virtual void HandleKeyboardEvent(
       const content::NativeWebKeyboardEvent& event) = 0;
 
-  content::Shell* shell() const { return shell_; }
+  content::Shell* shell() const { return shell_.get(); }
   content::WebContents* web_contents() const;
   bool has_frame() const { return has_frame_; }
   const gfx::Image& app_icon() const { return app_icon_; }
   void CapturePage(const std::string& image_format);
 
  protected:
-  explicit NativeWindow(content::Shell* shell,
+  void OnNativeWindowDestory() {
+    if (shell_)
+      delete shell_.get();
+  }
+  explicit NativeWindow(const base::WeakPtr<content::Shell>& shell,
                         base::DictionaryValue* manifest);
 
   // Weak reference to parent.
-  content::Shell* shell_;
+  base::WeakPtr<content::Shell> shell_;
 
   bool has_frame_;
 
@@ -131,6 +140,7 @@ class NativeWindow {
   gfx::Image app_icon_;
 
   scoped_refptr<CapturePageHelper> capture_page_helper_;
+  friend class content::Shell;
 
  private:
   void LoadAppIconFromPackage(base::DictionaryValue* manifest);

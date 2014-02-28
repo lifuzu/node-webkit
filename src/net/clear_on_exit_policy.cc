@@ -5,7 +5,7 @@
 #include "content/nw/src/net/clear_on_exit_policy.h"
 
 #include "content/public/common/url_constants.h"
-#include "googleurl/src/gurl.h"
+#include "url/gurl.h"
 #include "webkit/browser/quota/special_storage_policy.h"
 
 ClearOnExitPolicy::ClearOnExitPolicy(
@@ -27,7 +27,7 @@ bool ClearOnExitPolicy::ShouldClearOriginOnExit(const std::string& domain,
     return false;
 
   std::string scheme =
-      scheme_is_secure ? chrome::kHttpsScheme : chrome::kHttpScheme;
+      scheme_is_secure ? content::kHttpsScheme : content::kHttpScheme;
   std::string host = domain[0] == '.' ? domain.substr(1) : domain;
   GURL url(scheme + content::kStandardSchemeSeparator + host);
 
